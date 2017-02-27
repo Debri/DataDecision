@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!--注解注入-->
+    <context:annotation-config/>
+    <!--配置自动扫描-->
+    <context:component-scan base-package="com.geek"/>
+    <!--配置数据源-->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <!--驱动和用户名密码-->
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}?useUnicode=true&amp;characterEncoding=utf-8&amp;zeroDateTimeBehavior=convertToNull"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+        <!--最大连接数量-->
+        <property name="maxActive" value="100"/>
+        <!--最小空闲连接-->
+        <property name="minIdle" value="5"/>
+        <!--最大空闲连接-->
+        <property name="maxIdle" value="20"/>
+        <!--初始化连接数量-->
+        <property name="initialSize" value="30"/>
+        <!--连接被泄露时是否打印-->
+        <property name="logAbandoned" value="true"/>
+        <!--最大等待时间 单位毫秒-->
+        <property name="maxWait" value="1000"/>
+        <!--配置间隔多久才进行一次检测需要关闭的空闲连接 -->
+        <property name="timeBetweenEvictionRunsMillis" value="60000"/>
+    </bean>
+    <!--配置sqlSessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="mapperLocations" value="classpath:com/geek/mapper/*.xml"/>
+        <property name="configurationProperties">
+            <props>
+                <prop key="cacheEnabled">true</prop>
+                <prop key="callSetterOnNulls">true</prop>
+            </props>
+        </property>
+    </bean>
+    <!--自动扫描dao层的接口 生成代理类注入spring-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.geek.manager"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+    <!--配置事务-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!--注解方式配置事务-->
+    <!--<tx:annotation-driven transaction-manager="transactionManager"/>-->
+
+    <!--拦截器的方式配置事务-->
+    <tx:advice id="transactionInterceptor" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="add*" propagation="REQUIRED"/>
+            <tx:method name="insert*" propagation="REQUIRED"/>
+            <tx:method name="modify*" propagation="REQUIRED"/>
+            <tx:method name="update*" propagation="REQUIRED"/>
+            <tx:method name="delete*" propagation="REQUIRED"/>
+            <tx:method name="remove*" propagation="REQUIRED"/>
+
+            <tx:method name="get*" propagation="SUPPORTS"/>
+            <tx:method name="find*" propagation="SUPPORTS"/>
+            <tx:method name="search*" propagation="SUPPORTS"/>
+            <tx:method name="select*" propagation="SUPPORTS"/>
+            <tx:method name="datagrid*" propagation="SUPPORTS"/>
+
+            <tx:method name="*" propagation="SUPPORTS"/>
+        </tx:attributes>
+    </tx:advice>
+    <!--定义一个切面 在切面上加入事务-->
+    <aop:config>
+        <aop:pointcut id="transactionPointcut" expression="execution(* com.geek.service.*impl.*(..))"/>
+        <aop:advisor advice-ref="transactionInterceptor" pointcut-ref="transactionPointcut"/>
+    </aop:config>
+</beans>
